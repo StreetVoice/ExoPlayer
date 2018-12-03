@@ -20,6 +20,7 @@ import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.upstream.DataSpec;
 import com.google.android.exoplayer2.upstream.cache.Cache;
 import com.google.android.exoplayer2.upstream.cache.CacheDataSource;
+import com.google.android.exoplayer2.upstream.cache.CacheKeyFactory;
 import com.google.android.exoplayer2.upstream.cache.CacheUtil;
 import com.google.android.exoplayer2.upstream.cache.CacheUtil.CachingCounters;
 import com.google.android.exoplayer2.util.PriorityTaskManager;
@@ -36,6 +37,7 @@ public final class ProgressiveDownloader implements Downloader {
   private final DataSpec dataSpec;
   private final Cache cache;
   private final CacheDataSource dataSource;
+  private final CacheKeyFactory cacheKeyFactory;
   private final PriorityTaskManager priorityTaskManager;
   private final CacheUtil.CachingCounters cachingCounters;
   private final AtomicBoolean isCanceled;
@@ -47,10 +49,13 @@ public final class ProgressiveDownloader implements Downloader {
    * @param constructorHelper A {@link DownloaderConstructorHelper} instance.
    */
   public ProgressiveDownloader(
-      Uri uri, String customCacheKey, DownloaderConstructorHelper constructorHelper) {
-    this.dataSpec = new DataSpec(uri, 0, C.LENGTH_UNSET, customCacheKey, 0);
+      Uri uri, @Nullable String customCacheKey, DownloaderConstructorHelper constructorHelper) {
+    this.dataSpec =
+        new DataSpec(
+            uri, /* absoluteStreamPosition= */ 0, C.LENGTH_UNSET, customCacheKey, /* flags= */ 0);
     this.cache = constructorHelper.getCache();
     this.dataSource = constructorHelper.createCacheDataSource();
+    this.cacheKeyFactory = constructorHelper.getCacheKeyFactory();
     this.priorityTaskManager = constructorHelper.getPriorityTaskManager();
     cachingCounters = new CachingCounters();
     isCanceled = new AtomicBoolean();
@@ -63,6 +68,7 @@ public final class ProgressiveDownloader implements Downloader {
       CacheUtil.cache(
           dataSpec,
           cache,
+          cacheKeyFactory,
           dataSource,
           new byte[BUFFER_SIZE_BYTES],
           priorityTaskManager,
@@ -95,6 +101,6 @@ public final class ProgressiveDownloader implements Downloader {
 
   @Override
   public void remove() {
-    CacheUtil.remove(cache, CacheUtil.getKey(dataSpec));
+    CacheUtil.remove(dataSpec, cache, cacheKeyFactory);
   }
 }
